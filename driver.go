@@ -16,7 +16,7 @@ func NewDriver() *Driver {
 // Open opens a new connection to the database.
 func (d *Driver) Open(name string) (driver.Conn, error) {
 	// TODO: implement
-	return nil, nil
+	return nil, errors.New("Open is not yet implemented")
 }
 
 // OpenConnector returns a new connector.
