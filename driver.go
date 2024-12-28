@@ -2,8 +2,17 @@ package rdsdata
 
 import (
 	"context"
+	"database/sql"
 	"database/sql/driver"
 )
+
+// This variable can be replaced with -ldflags like below:
+// go build "-ldflags=-X github.com/shogo82148/go-rdsdata.driverName=custom"
+var driverName = "rdsdata"
+
+func init() {
+	sql.Register(driverName, NewDriver())
+}
 
 var _ driver.Driver = (*Driver)(nil)
 var _ driver.DriverContext = (*Driver)(nil)
