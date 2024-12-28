@@ -1,6 +1,9 @@
 package rdsdata
 
-import "database/sql/driver"
+import (
+	"database/sql/driver"
+	"errors"
+)
 
 var _ driver.Driver = (*Driver)(nil)
 var _ driver.DriverContext = (*Driver)(nil)
