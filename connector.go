@@ -19,8 +19,12 @@ type Connector struct {
 }
 
 func NewConnector(cfg *Config) *Connector {
+	return newConnector(NewDriver(), cfg)
+}
+
+func newConnector(driver *Driver, cfg *Config) *Connector {
 	return &Connector{
-		driver:      NewDriver(),
+		driver:      driver,
 		resourceArn: cfg.ResourceArn,
 		secretArn:   cfg.SecretArn,
 		database:    cfg.Database,

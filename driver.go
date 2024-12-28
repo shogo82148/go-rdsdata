@@ -1,8 +1,8 @@
 package rdsdata
 
 import (
+	"context"
 	"database/sql/driver"
-	"errors"
 )
 
 var _ driver.Driver = (*Driver)(nil)
@@ -17,13 +17,20 @@ func NewDriver() *Driver {
 }
 
 // Open opens a new connection to the database.
-func (d *Driver) Open(name string) (driver.Conn, error) {
-	// TODO: implement
-	return nil, errors.New("Open is not yet implemented")
+func (d *Driver) Open(dsn string) (driver.Conn, error) {
+	connector, err := d.OpenConnector(dsn)
+	if err != nil {
+		return nil, err
+	}
+	return connector.Connect(context.Background())
 }
 
 // OpenConnector returns a new connector.
-func (d *Driver) OpenConnector(name string) (driver.Connector, error) {
-	// TODO: implement
-	return nil, nil
+func (d *Driver) OpenConnector(dsn string) (driver.Connector, error) {
+	cfg, err := ParseDSN(dsn)
+	if err != nil {
+		return nil, err
+	}
+	connector := newConnector(d, cfg)
+	return connector, nil
 }
