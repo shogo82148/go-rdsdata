@@ -70,7 +70,7 @@ func runMySQLTest(t *testing.T, f func(ctx context.Context, t *testing.T, db *sq
 
 		// setup a local MySQL server
 		config0 := mysql.NewConfig()
-		config0.Addr = "127.0.0.1"
+		config0.Addr = "127.0.0.1:3306"
 		config0.Passwd = "supersecret"
 		config0.Net = "tcp"
 		config0.User = "root"
