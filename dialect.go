@@ -1,5 +1,7 @@
 package rdsdata
 
+import "database/sql"
+
 type Dialect interface {
-	// TODO: implement
+	IsIsolationLevelSupported(level sql.IsolationLevel) bool
 }

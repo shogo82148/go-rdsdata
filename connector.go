@@ -77,21 +77,21 @@ func (c *Connector) detectDatabaseEngine(ctx context.Context, client awsClientIn
 	return retry.DoValue(ctx, c.policy, func() (Dialect, error) {
 		out, err := client.ExecuteStatement(ctx, in)
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
 		if len(out.Records) == 0 {
-			return 0, errors.New("rdsdata: invalid response to version request")
+			return nil, errors.New("rdsdata: invalid response to version request")
 		}
 
 		row := out.Records[0]
 		if len(row) == 0 {
-			return 0, errors.New("rdsdata: invalid response to version request")
+			return nil, errors.New("rdsdata: invalid response to version request")
 		}
 
 		field := row[0]
 		version, ok := field.(*types.FieldMemberStringValue)
 		if !ok {
-			return 0, errors.New("rdsdata: invalid response to version request")
+			return nil, errors.New("rdsdata: invalid response to version request")
 		}
 
 		if strings.Contains(strings.ToLower(version.Value), "postgresql") {
