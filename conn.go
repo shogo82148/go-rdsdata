@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/rdsdata"
@@ -66,6 +68,11 @@ func (c *Conn) Begin() (driver.Tx, error) {
 }
 
 func (c *Conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
+	level := sql.IsolationLevel(opts.Isolation)
+	if !c.dialect.IsIsolationLevelSupported(level) {
+		return nil, fmt.Errorf("rdsdata: unsupported isolation level: %s", level.String())
+	}
+
 	out, err := c.client.BeginTransaction(ctx, &rdsdata.BeginTransactionInput{
 		ResourceArn: &c.connector.resourceArn,
 		SecretArn:   &c.connector.secretArn,
@@ -80,6 +87,26 @@ func (c *Conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, e
 		id:   out.TransactionId,
 		conn: c,
 	}
+
+	var clause []string
+	if level != sql.LevelDefault {
+		clause = append(clause, "ISOLATION LEVEL "+level.String())
+	}
+	if opts.ReadOnly {
+		clause = append(clause, "READ ONLY")
+	}
+	if len(clause) > 0 {
+		if _, err := c.client.ExecuteStatement(ctx, &rdsdata.ExecuteStatementInput{
+			ResourceArn: &c.connector.resourceArn,
+			SecretArn:   &c.connector.secretArn,
+			Database:    &c.connector.database,
+			Sql:         aws.String("SET TRANSACTION " + strings.Join(clause, ", ")),
+		}); err != nil {
+			_ = tx.Rollback()
+			return nil, err
+		}
+	}
+
 	c.tx = tx
 	return tx, nil
 }

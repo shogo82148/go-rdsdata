@@ -119,6 +119,7 @@ func TestConn_BeginTx(t *testing.T) {
 			secretArn:   "secretArn",
 			database:    "database",
 		},
+		dialect: &DialectMySQL{},
 	}
 	tx, err := conn.BeginTx(context.Background(), driver.TxOptions{})
 	if err != nil {
