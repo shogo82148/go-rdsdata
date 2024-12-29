@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql/driver"
 	"errors"
-	"log"
 	"strings"
 	"time"
 
@@ -56,7 +55,6 @@ func (c *Connector) Connect(ctx context.Context) (driver.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("%#v", dialect)
 	return &Conn{
 		client:    client,
 		connector: c,
