@@ -25,5 +25,19 @@ export class RdsDataStack extends cdk.Stack {
       },
       vpc,
     });
+
+    const postgresCluster = new rds.DatabaseCluster(this, "PostgresCluster", {
+      engine: rds.DatabaseClusterEngine.auroraPostgres({
+        version: rds.AuroraPostgresEngineVersion.VER_16_6,
+      }),
+      writer: rds.ClusterInstance.serverlessV2("writer"),
+      serverlessV2MaxCapacity: 2,
+      serverlessV2MinCapacity: 0,
+      enableDataApi: true,
+      vpcSubnets: {
+        subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
+      },
+      vpc,
+    });
   }
 }
