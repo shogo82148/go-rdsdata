@@ -1,6 +1,8 @@
 package rdsdata
 
-import "database/sql"
+import (
+	"database/sql"
+)
 
 // compile time type check
 var _ Dialect = (*DialectMySQL)(nil)
@@ -23,4 +25,8 @@ func (d *DialectMySQL) IsIsolationLevelSupported(level sql.IsolationLevel) bool 
 	default:
 		return false
 	}
+}
+
+func (d *DialectMySQL) GetFieldConverter(columnType string) FieldConverter {
+	return convertDefault
 }

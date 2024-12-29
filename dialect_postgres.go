@@ -24,3 +24,7 @@ func (d *DialectPostgres) IsIsolationLevelSupported(level sql.IsolationLevel) bo
 		return false
 	}
 }
+
+func (d *DialectPostgres) GetFieldConverter(columnType string) FieldConverter {
+	return convertDefault
+}

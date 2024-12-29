@@ -120,3 +120,47 @@ func TestMySQL_Ping(t *testing.T) {
 		}
 	})
 }
+
+func TestMySQL_Select(t *testing.T) {
+	runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+		rows, err := db.QueryContext(ctx, "SELECT 1 AS one")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// check columns
+		columns, err := rows.Columns()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(columns) != 1 {
+			t.Errorf("unexpected columns: %v", columns)
+		}
+		if columns[0] != "one" {
+			t.Errorf("unexpected columns: %v", columns)
+		}
+
+		// check rows
+		if !rows.Next() {
+			t.Fatal("no rows")
+		}
+		var one any
+		if err := rows.Scan(&one); err != nil {
+			t.Fatal(err)
+		}
+		if one != int64(1) {
+			t.Errorf("unexpected value: %v", one)
+		}
+
+		// check no more rows
+		if rows.Next() {
+			t.Fatal("more rows")
+		}
+		if err := rows.Err(); err != nil {
+			t.Fatal(err)
+		}
+		if err := rows.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+}

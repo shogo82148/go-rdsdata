@@ -62,7 +62,7 @@ func (s *Stmt) QueryContext(ctx context.Context, args []driver.NamedValue) (driv
 		}
 		output = append(output, out)
 	}
-	return newRows(output), nil
+	return newRows(s.conn.dialect, output), nil
 }
 
 // convertOrdinal converts the values to named values.
