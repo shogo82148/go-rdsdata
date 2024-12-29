@@ -78,12 +78,18 @@ func convertOrdinal(values []driver.Value) []driver.NamedValue {
 }
 
 func (s *Stmt) executeStatement(ctx context.Context, query string, _ []driver.NamedValue) (*rdsdata.ExecuteStatementOutput, error) {
-	// TODO: Implement the conversion of named values to positional values.
-	return s.conn.client.ExecuteStatement(ctx, &rdsdata.ExecuteStatementInput{
+	input := &rdsdata.ExecuteStatementInput{
 		ResourceArn:           &s.conn.connector.resourceArn,
 		SecretArn:             &s.conn.connector.secretArn,
 		Database:              &s.conn.connector.database,
 		Sql:                   &query,
 		IncludeResultMetadata: true,
-	})
+	}
+
+	if s.conn.tx != nil {
+		input.TransactionId = s.conn.tx.id
+	}
+
+	// TODO: Implement the conversion of named values to positional values.
+	return s.conn.client.ExecuteStatement(ctx, input)
 }
