@@ -25,6 +25,7 @@ type awsClientInterface interface {
 type Conn struct {
 	client    awsClientInterface
 	connector *Connector
+	dialect   Dialect
 }
 
 // Prepare prepares a query.
