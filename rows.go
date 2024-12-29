@@ -51,7 +51,7 @@ func (r *Rows) Next(dest []driver.Value) error {
 	row := curr.Records[r.recordPosition]
 	r.recordPosition++
 	for i, field := range row {
-		v, err := convertDefault(field)
+		v, err := r.converters[i](field)
 		if err != nil {
 			return err
 		}
