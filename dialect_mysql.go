@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/rdsdata"
@@ -47,7 +48,7 @@ func (d *DialectMySQL) MigrateQuery(query string, args []driver.NamedValue) (*rd
 		return ":" + strconv.Itoa(idx)
 	})
 
-	params, err := convertNamedValues(namedArgs)
+	params, err := d.convertNamedValues(namedArgs)
 	if err != nil {
 		return nil, err
 	}
@@ -55,6 +56,69 @@ func (d *DialectMySQL) MigrateQuery(query string, args []driver.NamedValue) (*rd
 		Parameters: params,
 		Sql:        aws.String(query),
 	}, nil
+}
+
+// convertNamedValues converts named arguments to RDS parameters.
+func (d *DialectMySQL) convertNamedValues(args []driver.NamedValue) ([]types.SqlParameter, error) {
+	params := make([]types.SqlParameter, len(args))
+	for i, arg := range args {
+		sqlParam, err := d.convertNamedValue(arg)
+		if err != nil {
+			return nil, err
+		}
+		params[i] = sqlParam
+	}
+	return params, nil
+}
+
+// convertNamedValue converts a named argument to an RDS parameter.
+func (d *DialectMySQL) convertNamedValue(arg driver.NamedValue) (types.SqlParameter, error) {
+	name := arg.Name
+
+	switch v := arg.Value.(type) {
+	case int64:
+		return types.SqlParameter{
+			Name:  &name,
+			Value: &types.FieldMemberLongValue{Value: v},
+		}, nil
+	case float64:
+		return types.SqlParameter{
+			Name:  &name,
+			Value: &types.FieldMemberDoubleValue{Value: v},
+		}, nil
+	case bool:
+		// In MySQL, TRUE is 1 and FALSE is 0.
+		var w int64
+		if v {
+			w = 1
+		}
+		return types.SqlParameter{
+			Name:  &name,
+			Value: &types.FieldMemberLongValue{Value: w},
+		}, nil
+	case []byte:
+		return types.SqlParameter{
+			Name:  &name,
+			Value: &types.FieldMemberBlobValue{Value: v},
+		}, nil
+	case string:
+		return types.SqlParameter{
+			Name:  &name,
+			Value: &types.FieldMemberStringValue{Value: v},
+		}, nil
+	case time.Time:
+		return types.SqlParameter{
+			Name:     &name,
+			TypeHint: types.TypeHintTimestamp,
+			Value:    &types.FieldMemberStringValue{Value: v.Format(time.RFC3339Nano)},
+		}, nil
+	case nil:
+		return types.SqlParameter{
+			Name:  &name,
+			Value: &types.FieldMemberIsNull{Value: true},
+		}, nil
+	}
+	return types.SqlParameter{}, fmt.Errorf("rdsdata: unsupported driver.NamedValue type: %T", arg.Value)
 }
 
 func (d *DialectMySQL) IsIsolationLevelSupported(level sql.IsolationLevel) bool {
@@ -75,6 +139,7 @@ func (d *DialectMySQL) IsIsolationLevelSupported(level sql.IsolationLevel) bool 
 }
 
 func (d *DialectMySQL) GetFieldConverter(columnType string) FieldConverter {
+	// log.Printf("columnType: %s\n", columnType)
 	switch strings.ToLower(columnType) {
 	case "bigint unsigned":
 		return func(field types.Field) (driver.Value, error) {
