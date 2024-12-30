@@ -127,6 +127,11 @@ func TestMySQL_Select(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		defer func() {
+			if err := rows.Close(); err != nil {
+				t.Fatal(err)
+			}
+		}()
 
 		// check columns
 		columns, err := rows.Columns()
@@ -157,9 +162,6 @@ func TestMySQL_Select(t *testing.T) {
 			t.Fatal("more rows")
 		}
 		if err := rows.Err(); err != nil {
-			t.Fatal(err)
-		}
-		if err := rows.Close(); err != nil {
 			t.Fatal(err)
 		}
 	})
