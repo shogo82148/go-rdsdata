@@ -3,9 +3,12 @@ package rdsdata
 import (
 	"database/sql"
 	"database/sql/driver"
+	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/rdsdata"
 	"github.com/aws/aws-sdk-go-v2/service/rdsdata/types"
 )
 
@@ -13,10 +16,48 @@ import (
 type FieldConverter func(field types.Field) (driver.Value, error)
 
 type Dialect interface {
+	// MigrateQuery from the dialect to RDS.
+	MigrateQuery(query string, args []driver.NamedValue) (*rdsdata.ExecuteStatementInput, error)
+
+	// IsolationLevel returns the isolation level for the dialect.
 	IsIsolationLevelSupported(level sql.IsolationLevel) bool
+
+	// GetFieldConverter returns the field converter for the dialect.
 	GetFieldConverter(columnType string) FieldConverter
 }
 
+// isOrdinal returns true if the arguments are ordinal.
+func isOrdinal(args []driver.NamedValue) (bool, error) {
+	// Make sure we're not mixing and matching.
+	ordinal := false
+	named := false
+	for _, arg := range args {
+		if arg.Name != "" {
+			named = true
+		}
+		if arg.Ordinal > 0 {
+			ordinal = true
+		}
+		if named && ordinal {
+			return false, errors.New("rdsdata: cannot mix named and ordinal parameters")
+		}
+	}
+	return ordinal, nil
+}
+
+// convertOrdinalToNamed converts ordinal arguments to named arguments.
+func convertOrdinalToNamed(args []driver.NamedValue) []driver.NamedValue {
+	ret := make([]driver.NamedValue, len(args))
+	for i, v := range args {
+		ret[i] = driver.NamedValue{
+			Name:  strconv.Itoa(v.Ordinal),
+			Value: v.Value,
+		}
+	}
+	return ret
+}
+
+// convertNamedValues converts named arguments to RDS parameters.
 func convertNamedValues(args []driver.NamedValue) ([]types.SqlParameter, error) {
 	params := make([]types.SqlParameter, len(args))
 	for i, arg := range args {
@@ -29,6 +70,7 @@ func convertNamedValues(args []driver.NamedValue) ([]types.SqlParameter, error) 
 	return params, nil
 }
 
+// convertNamedValue converts a named argument to an RDS parameter.
 func convertNamedValue(arg driver.NamedValue) (types.SqlParameter, error) {
 	name := arg.Name
 

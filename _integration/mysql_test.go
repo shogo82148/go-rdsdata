@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"fmt"
@@ -164,5 +165,692 @@ func TestMySQL_Select(t *testing.T) {
 		if err := rows.Err(); err != nil {
 			t.Fatal(err)
 		}
+	})
+}
+
+func TestMySQL_ConvertParameters(t *testing.T) {
+	t.Run("int64", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			row := db.QueryRowContext(ctx, "SELECT ?", 42)
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if value != int64(42) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("float64", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			row := db.QueryRowContext(ctx, "SELECT ?", 42.0)
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if value != 42.0 {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("bool", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			row := db.QueryRowContext(ctx, "SELECT ?", true)
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if value != int64(1) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("bytes", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			row := db.QueryRowContext(ctx, "SELECT ?", []byte{0x01, 0x02, 0x03})
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(value.([]byte), []byte{0x01, 0x02, 0x03}) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("string", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			row := db.QueryRowContext(ctx, "SELECT ?", "hello")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(value.([]byte), []byte("hello")) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+}
+
+func TestMySQL_ConvertResult(t *testing.T) {
+	t.Run("BIT", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value BIT(6))"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES (b'101')"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			// go-sql-driver/mysql converts BIT to []byte
+			// however, RDS Data API converts BIT to bool
+			if data, ok := value.([]byte); (!ok || !bytes.Equal(data, []byte{0x05})) && value != true {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("TINYINT", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value TINYINT)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES (42)"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if value != int64(42) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("TINYINT UNSIGNED", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value TINYINT UNSIGNED)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES (42)"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if value != int64(42) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("BOOLEAN", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value BOOLEAN)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES (TRUE)"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+
+			// go-sql-driver/mysql converts BOOLEAN to int64
+			// however, RDS Data API converts BOOLEAN to bool
+			if value != int64(1) && value != true {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("SMALLINT", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value SMALLINT)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES (42)"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if value != int64(42) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("SMALLINT UNSIGNED", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value SMALLINT UNSIGNED)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES (42)"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if value != int64(42) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("MEDIUMINT", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value MEDIUMINT)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES (42)"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if value != int64(42) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("MEDIUMINT UNSIGNED", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value MEDIUMINT UNSIGNED)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES (42)"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if value != int64(42) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("INT", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value INT)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES (42)"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if value != int64(42) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("INT UNSIGNED", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value INT UNSIGNED)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES (42)"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if value != int64(42) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("BIGINT", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value BIGINT)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES (42)"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if value != int64(42) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("BIGINT UNSIGNED", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value BIGINT UNSIGNED)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES ('9223372036854775807')"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if value != uint64(9223372036854775807) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("DECIMAL", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value DECIMAL(5,2))"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES (0.1)"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(value.([]byte), []byte("0.10")) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("FLOAT", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value FLOAT)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES (42)"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if value != float32(42.0) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+	t.Run("DOUBLE", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value DOUBLE)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES (42)"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if value != 42.0 {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("CHAR", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value CHAR(20))"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES ('hello')"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(value.([]byte), []byte("hello")) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("VARCHAR", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value VARCHAR(20))"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES ('hello')"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(value.([]byte), []byte("hello")) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("BINARY", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value BINARY(10))"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES ('hello')"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(value.([]byte), []byte("hello\x00\x00\x00\x00\x00")) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("VARBINARY", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value VARBINARY(10))"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES ('hello')"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(value.([]byte), []byte("hello")) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("TINYTEXT", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value TINYTEXT)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES ('hello')"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(value.([]byte), []byte("hello")) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("TEXT", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value TEXT)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES ('hello')"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(value.([]byte), []byte("hello")) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("MEDIUMTEXT", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value MEDIUMTEXT)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES ('hello')"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(value.([]byte), []byte("hello")) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("LONGTEXT", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value LONGTEXT)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES ('hello')"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(value.([]byte), []byte("hello")) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("TINYBLOB", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value TINYBLOB)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES (X'010203')"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(value.([]byte), []byte{0x01, 0x02, 0x03}) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("BLOB", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value BLOB)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES (X'010203')"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(value.([]byte), []byte{0x01, 0x02, 0x03}) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("MEDIUMBLOB", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value MEDIUMBLOB)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES (X'010203')"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(value.([]byte), []byte{0x01, 0x02, 0x03}) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("LONGBLOB", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value LONGBLOB)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES (X'010203')"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(value.([]byte), []byte{0x01, 0x02, 0x03}) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("ENUM", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (color ENUM('red', 'green', 'blue'))"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (color) VALUES ('red')"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT color FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(value.([]byte), []byte("red")) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("SET", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (color SET('red', 'green', 'blue'))"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (color) VALUES ('red,green')"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT color FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(value.([]byte), []byte("red,green")) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
 	})
 }
