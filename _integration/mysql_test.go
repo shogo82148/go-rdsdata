@@ -8,10 +8,14 @@ import (
 	"math/rand/v2"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/shogo82148/go-rdsdata"
 )
+
+// jst is the timezone for Japan Standard Time.
+var jst = time.FixedZone("Asia/Tokyo", 9*60*60)
 
 func runMySQLTest(t *testing.T, f func(ctx context.Context, t *testing.T, db *sql.DB)) {
 	t.Parallel()
@@ -50,6 +54,8 @@ func runMySQLTest(t *testing.T, f func(ctx context.Context, t *testing.T, db *sq
 			SecretArn:   os.Getenv("RDSDATA_MYSQL_SECRET_ARN"),
 			Database:    dbname,
 			AWSRegion:   os.Getenv("AWS_REGION"),
+			Location:    jst,
+			ParseTime:   true,
 		}
 
 		connector := rdsdata.NewConnector(config)
@@ -97,6 +103,8 @@ func runMySQLTest(t *testing.T, f func(ctx context.Context, t *testing.T, db *sq
 		// setup a connection to the local MySQL server
 		config := config0.Clone()
 		config.DBName = dbname
+		config.Loc = jst
+		config.ParseTime = true
 		connector, err := mysql.NewConnector(config)
 		if err != nil {
 			t.Fatal(err)
@@ -235,6 +243,20 @@ func TestMySQL_ConvertParameters(t *testing.T) {
 			}
 			if !bytes.Equal(value.([]byte), []byte("hello")) {
 				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("time.Time", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			row := db.QueryRowContext(ctx, "SELECT ?", time.Date(2021, 1, 2, 3, 4, 5, 999_999_999, time.UTC))
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(value.([]byte), []byte("2021-01-02 12:04:05.999999999")) {
+				t.Errorf("unexpected value: %s, %T", value, value)
 			}
 		})
 	})

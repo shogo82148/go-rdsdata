@@ -17,12 +17,9 @@ import (
 var _ driver.Connector = (*Connector)(nil)
 
 type Connector struct {
-	driver      *Driver
-	resourceArn string
-	secretArn   string
-	database    string
-	awsRegion   string
-	policy      *retry.Policy
+	driver *Driver
+	cfg    *Config
+	policy *retry.Policy
 }
 
 func NewConnector(cfg *Config) *Connector {
@@ -31,11 +28,8 @@ func NewConnector(cfg *Config) *Connector {
 
 func newConnector(driver *Driver, cfg *Config) *Connector {
 	return &Connector{
-		driver:      driver,
-		resourceArn: cfg.ResourceArn,
-		secretArn:   cfg.SecretArn,
-		database:    cfg.Database,
-		awsRegion:   cfg.AWSRegion,
+		driver: driver,
+		cfg:    cfg.Clone(),
 		policy: &retry.Policy{
 			MinDelay: time.Second,
 			MaxDelay: 30 * time.Second,
@@ -46,7 +40,7 @@ func newConnector(driver *Driver, cfg *Config) *Connector {
 }
 
 func (c *Connector) Connect(ctx context.Context) (driver.Conn, error) {
-	awsConfig, err := config.LoadDefaultConfig(ctx, config.WithRegion(c.awsRegion))
+	awsConfig, err := config.LoadDefaultConfig(ctx, config.WithRegion(c.cfg.AWSRegion))
 	if err != nil {
 		return nil, err
 	}
@@ -68,9 +62,9 @@ func (c *Connector) Driver() driver.Driver {
 
 func (c *Connector) detectDatabaseEngine(ctx context.Context, client awsClientInterface) (Dialect, error) {
 	in := &rdsdata.ExecuteStatementInput{
-		ResourceArn: &c.resourceArn,
-		SecretArn:   &c.secretArn,
-		Database:    &c.database,
+		ResourceArn: &c.cfg.ResourceArn,
+		SecretArn:   &c.cfg.SecretArn,
+		Database:    &c.cfg.Database,
 		Sql:         aws.String("SELECT VERSION()"),
 	}
 
@@ -103,7 +97,15 @@ func (c *Connector) detectDatabaseEngine(ctx context.Context, client awsClientIn
 }
 
 func (c *Connector) newDialectMySQL() *DialectMySQL {
-	return &DialectMySQL{}
+	loc := time.UTC
+	if c.cfg.Location != nil {
+		loc = c.cfg.Location
+	}
+	return &DialectMySQL{
+		location:     loc,
+		parseTime:    c.cfg.ParseTime,
+		timeTruncate: c.cfg.TimeTruncate,
+	}
 }
 
 func (c *Connector) newDialectPostgres() *DialectPostgres {

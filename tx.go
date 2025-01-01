@@ -24,8 +24,8 @@ func (tx *Tx) Commit() error {
 	}
 
 	_, err := tx.conn.client.CommitTransaction(tx.ctx, &rdsdata.CommitTransactionInput{
-		ResourceArn:   &tx.conn.connector.resourceArn,
-		SecretArn:     &tx.conn.connector.secretArn,
+		ResourceArn:   &tx.conn.connector.cfg.ResourceArn,
+		SecretArn:     &tx.conn.connector.cfg.SecretArn,
 		TransactionId: tx.id,
 	})
 	if err != nil {
@@ -43,8 +43,8 @@ func (tx *Tx) Rollback() error {
 	}
 
 	_, err := tx.conn.client.RollbackTransaction(context.Background(), &rdsdata.RollbackTransactionInput{
-		ResourceArn:   &tx.conn.connector.resourceArn,
-		SecretArn:     &tx.conn.connector.secretArn,
+		ResourceArn:   &tx.conn.connector.cfg.ResourceArn,
+		SecretArn:     &tx.conn.connector.cfg.SecretArn,
 		TransactionId: tx.id,
 	})
 	if err != nil {

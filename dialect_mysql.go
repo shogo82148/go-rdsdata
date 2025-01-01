@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -20,7 +19,11 @@ var ordinalRegex = regexp.MustCompile(`\?`)
 var _ Dialect = (*DialectMySQL)(nil)
 
 // DialectMySQL is the MySQL dialect.
-type DialectMySQL struct{}
+type DialectMySQL struct {
+	location     *time.Location
+	parseTime    bool
+	timeTruncate time.Duration
+}
 
 // MigrateQuery converts a MySQL query into an RDS statement.
 func (d *DialectMySQL) MigrateQuery(query string, args []driver.NamedValue) (*rdsdata.ExecuteStatementInput, error) {
@@ -107,10 +110,11 @@ func (d *DialectMySQL) convertNamedValue(arg driver.NamedValue) (types.SqlParame
 			Value: &types.FieldMemberStringValue{Value: v},
 		}, nil
 	case time.Time:
+		const format = "2006-01-02 15:04:05.999999999"
+		t := v.In(d.location).Truncate(d.timeTruncate)
 		return types.SqlParameter{
-			Name:     &name,
-			TypeHint: types.TypeHintTimestamp,
-			Value:    &types.FieldMemberStringValue{Value: v.Format(time.RFC3339Nano)},
+			Name:  &name,
+			Value: &types.FieldMemberStringValue{Value: t.Format(format)},
 		}, nil
 	case nil:
 		return types.SqlParameter{
@@ -140,8 +144,8 @@ func (d *DialectMySQL) IsIsolationLevelSupported(level sql.IsolationLevel) bool 
 
 func (d *DialectMySQL) GetFieldConverter(columnType string) FieldConverter {
 	// log.Printf("columnType: %s\n", columnType)
-	switch strings.ToLower(columnType) {
-	case "bigint unsigned":
+	switch columnType {
+	case "BIGINT UNSIGNED":
 		return func(field types.Field) (driver.Value, error) {
 			v, ok := field.(*types.FieldMemberLongValue)
 			if !ok {
@@ -150,16 +154,7 @@ func (d *DialectMySQL) GetFieldConverter(columnType string) FieldConverter {
 			// go-sql-driver/mysql converts BIGINT UNSIGNED to uint64.
 			return uint64(v.Value), nil
 		}
-	case "decimal", "char", "varchar", "text", "enum":
-		return func(field types.Field) (driver.Value, error) {
-			v, ok := field.(*types.FieldMemberStringValue)
-			if !ok {
-				return nil, fmt.Errorf("rdsdata: unexpected field type %T", field)
-			}
-			// go-sql-driver/mysql converts these types to []byte.
-			return []byte(v.Value), nil
-		}
-	case "float":
+	case "FLOAT":
 		return func(field types.Field) (driver.Value, error) {
 			v, ok := field.(*types.FieldMemberDoubleValue)
 			if !ok {
@@ -169,5 +164,27 @@ func (d *DialectMySQL) GetFieldConverter(columnType string) FieldConverter {
 			return float32(v.Value), nil
 		}
 	}
-	return convertDefault
+	return convertMySQLDefault
+}
+
+func convertMySQLDefault(field types.Field) (driver.Value, error) {
+	switch v := field.(type) {
+	case *types.FieldMemberLongValue:
+		return v.Value, nil
+	case *types.FieldMemberDoubleValue:
+		return v.Value, nil
+	case *types.FieldMemberBooleanValue:
+		return v.Value, nil
+	case *types.FieldMemberBlobValue:
+		return v.Value, nil
+	case *types.FieldMemberStringValue:
+		// go-sql-driver/mysql converts string to []byte.
+		return []byte(v.Value), nil
+	case *types.FieldMemberArrayValue:
+		return v.Value, nil
+	case *types.FieldMemberIsNull:
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("rdsdata: unsupported field type: %T", v)
+	}
 }
