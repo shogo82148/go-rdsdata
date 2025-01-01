@@ -101,7 +101,9 @@ func (cfg *Config) FormatDSN() string {
 	v := url.Values{}
 	v.Add(keyResourceARN, cfg.ResourceArn)
 	v.Add(keySecretARN, cfg.SecretArn)
-	v.Add(keyDatabase, cfg.Database)
+	if cfg.Database != "" {
+		v.Add(keyDatabase, cfg.Database)
+	}
 	v.Add(keyAWSRegion, cfg.AWSRegion)
 	if cfg.Location != nil {
 		v.Add(keyLocation, cfg.Location.String())
