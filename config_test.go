@@ -75,6 +75,14 @@ func TestParseDSN(t *testing.T) {
 		}
 	})
 
+	t.Run("invalid timeTruncate", func(t *testing.T) {
+		dns := "rdsdata://?time_truncate=invalid"
+		_, err := ParseDSN(dns)
+		if err == nil {
+			t.Fatal("expected error, but got nil")
+		}
+	})
+
 	t.Run("returns error when the DSN scheme is invalid", func(t *testing.T) {
 		dsn := "invalid://?resource_arn=resourceARN&secret_arn=secretARN&database=database&aws_region=region"
 		_, err := ParseDSN(dsn)
