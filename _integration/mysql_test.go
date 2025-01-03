@@ -518,6 +518,27 @@ func TestMySQL_ConvertResult(t *testing.T) {
 		})
 	})
 
+	t.Run("BIGINT UNSIGNED NULL", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value BIGINT UNSIGNED)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES (NULL)"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if value != nil {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
 	t.Run("DECIMAL", func(t *testing.T) {
 		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
 			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value DECIMAL(5,2))"); err != nil {
@@ -559,6 +580,28 @@ func TestMySQL_ConvertResult(t *testing.T) {
 			}
 		})
 	})
+
+	t.Run("FLOAT NULL", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value FLOAT)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES (NULL)"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if value != nil {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
 	t.Run("DOUBLE", func(t *testing.T) {
 		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
 			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value DOUBLE)"); err != nil {

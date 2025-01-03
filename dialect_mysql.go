@@ -147,21 +147,27 @@ func (d *DialectMySQL) GetFieldConverter(columnType string) FieldConverter {
 	switch columnType {
 	case "BIGINT UNSIGNED":
 		return func(field types.Field) (driver.Value, error) {
-			v, ok := field.(*types.FieldMemberLongValue)
-			if !ok {
-				return nil, fmt.Errorf("rdsdata: unexpected field type %T", field)
+			switch v := field.(type) {
+			case *types.FieldMemberLongValue:
+				// go-sql-driver/mysql converts BIGINT UNSIGNED to uint64.
+				return uint64(v.Value), nil
+			case *types.FieldMemberIsNull:
+				return nil, nil
+			default:
+				return nil, fmt.Errorf("rdsdata: unsupported field type: %T", v)
 			}
-			// go-sql-driver/mysql converts BIGINT UNSIGNED to uint64.
-			return uint64(v.Value), nil
 		}
 	case "FLOAT":
 		return func(field types.Field) (driver.Value, error) {
-			v, ok := field.(*types.FieldMemberDoubleValue)
-			if !ok {
-				return nil, fmt.Errorf("rdsdata: unexpected field type %T", field)
+			switch v := field.(type) {
+			case *types.FieldMemberDoubleValue:
+				// go-sql-driver/mysql converts FLOAT to float32.
+				return float32(v.Value), nil
+			case *types.FieldMemberIsNull:
+				return nil, nil
+			default:
+				return nil, fmt.Errorf("rdsdata: unsupported field type: %T", v)
 			}
-			// go-sql-driver/mysql converts FLOAT to float32.
-			return float32(v.Value), nil
 		}
 	}
 	return convertMySQLDefault

@@ -19,6 +19,18 @@ func TestDialectMySQL_GetFieldConverter(t *testing.T) {
 		}
 	})
 
+	t.Run("BIGINT UNSIGNED NULL", func(t *testing.T) {
+		d := &DialectMySQL{}
+		conv := d.GetFieldConverter("BIGINT UNSIGNED")
+		v, err := conv(&types.FieldMemberIsNull{Value: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v != nil {
+			t.Errorf("unexpected value: %v, want nil", v)
+		}
+	})
+
 	t.Run("FLOAT", func(t *testing.T) {
 		d := &DialectMySQL{}
 		conv := d.GetFieldConverter("FLOAT")
@@ -28,6 +40,18 @@ func TestDialectMySQL_GetFieldConverter(t *testing.T) {
 		}
 		if v != float32(42.0) {
 			t.Errorf("unexpected value: %v, want 42.0", v)
+		}
+	})
+
+	t.Run("FLOAT NULL", func(t *testing.T) {
+		d := &DialectMySQL{}
+		conv := d.GetFieldConverter("FLOAT")
+		v, err := conv(&types.FieldMemberIsNull{Value: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v != nil {
+			t.Errorf("unexpected value: %v, want nil", v)
 		}
 	})
 
