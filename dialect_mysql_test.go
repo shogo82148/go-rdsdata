@@ -1,10 +1,215 @@
 package rdsdata
 
 import (
+	"database/sql/driver"
 	"testing"
+	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/rdsdata/types"
 )
+
+func TestDialectMySQL_MigrateQuery(t *testing.T) {
+	t.Run("convert int64 parameter", func(t *testing.T) {
+		d := &DialectMySQL{}
+		input, err := d.MigrateQuery("SELECT ?", []driver.NamedValue{
+			{
+				Ordinal: 1,
+				Value:   int64(42),
+			},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v := aws.ToString(input.Sql); v != "SELECT :1" {
+			t.Errorf("unexpected SQL: %q, want \"SELECT :1\"", v)
+		}
+		if len(input.Parameters) != 1 {
+			t.Fatalf("unexpected number of parameters: %d, want 1", len(input.Parameters))
+		}
+		if v := aws.ToString(input.Parameters[0].Name); v != "1" {
+			t.Errorf("unexpected parameter name: %q, want \"1\"", v)
+		}
+		if v, ok := input.Parameters[0].Value.(*types.FieldMemberLongValue); !ok || v.Value != 42 {
+			t.Errorf("unexpected parameter value: %v, want 42", v)
+		}
+	})
+
+	t.Run("convert float64 parameter", func(t *testing.T) {
+		d := &DialectMySQL{}
+		input, err := d.MigrateQuery("SELECT ?", []driver.NamedValue{
+			{
+				Ordinal: 1,
+				Value:   float64(42.0),
+			},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v := aws.ToString(input.Sql); v != "SELECT :1" {
+			t.Errorf("unexpected SQL: %q, want \"SELECT :1\"", v)
+		}
+		if len(input.Parameters) != 1 {
+			t.Fatalf("unexpected number of parameters: %d, want 1", len(input.Parameters))
+		}
+		if v := aws.ToString(input.Parameters[0].Name); v != "1" {
+			t.Errorf("unexpected parameter name: %q, want \"1\"", v)
+		}
+		if v, ok := input.Parameters[0].Value.(*types.FieldMemberDoubleValue); !ok || v.Value != 42.0 {
+			t.Errorf("unexpected parameter value: %v, want 42.0", v)
+		}
+	})
+
+	t.Run("convert true parameter", func(t *testing.T) {
+		d := &DialectMySQL{}
+		input, err := d.MigrateQuery("SELECT ?", []driver.NamedValue{
+			{
+				Ordinal: 1,
+				Value:   true,
+			},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v := aws.ToString(input.Sql); v != "SELECT :1" {
+			t.Errorf("unexpected SQL: %q, want \"SELECT :1\"", v)
+		}
+		if len(input.Parameters) != 1 {
+			t.Fatalf("unexpected number of parameters: %d, want 1", len(input.Parameters))
+		}
+		if v := aws.ToString(input.Parameters[0].Name); v != "1" {
+			t.Errorf("unexpected parameter name: %q, want \"1\"", v)
+		}
+		if v, ok := input.Parameters[0].Value.(*types.FieldMemberLongValue); !ok || v.Value != 1 {
+			t.Errorf("unexpected parameter value: %v, want 1", v)
+		}
+	})
+
+	t.Run("convert false parameter", func(t *testing.T) {
+		d := &DialectMySQL{}
+		input, err := d.MigrateQuery("SELECT ?", []driver.NamedValue{
+			{
+				Ordinal: 1,
+				Value:   false,
+			},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v := aws.ToString(input.Sql); v != "SELECT :1" {
+			t.Errorf("unexpected SQL: %q, want \"SELECT :1\"", v)
+		}
+		if len(input.Parameters) != 1 {
+			t.Fatalf("unexpected number of parameters: %d, want 1", len(input.Parameters))
+		}
+		if v := aws.ToString(input.Parameters[0].Name); v != "1" {
+			t.Errorf("unexpected parameter name: %q, want \"1\"", v)
+		}
+		if v, ok := input.Parameters[0].Value.(*types.FieldMemberLongValue); !ok || v.Value != 0 {
+			t.Errorf("unexpected parameter value: %v, want 0", v)
+		}
+	})
+
+	t.Run("convert []byte parameter", func(t *testing.T) {
+		d := &DialectMySQL{}
+		input, err := d.MigrateQuery("SELECT ?", []driver.NamedValue{
+			{
+				Ordinal: 1,
+				Value:   []byte("hello"),
+			},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v := aws.ToString(input.Sql); v != "SELECT :1" {
+			t.Errorf("unexpected SQL: %q, want \"SELECT :1\"", v)
+		}
+		if len(input.Parameters) != 1 {
+			t.Fatalf("unexpected number of parameters: %d, want 1", len(input.Parameters))
+		}
+		if v := aws.ToString(input.Parameters[0].Name); v != "1" {
+			t.Errorf("unexpected parameter name: %q, want \"1\"", v)
+		}
+		if v, ok := input.Parameters[0].Value.(*types.FieldMemberBlobValue); !ok || string(v.Value) != "hello" {
+			t.Errorf("unexpected parameter value: %q, want \"hello\"", v.Value)
+		}
+	})
+
+	t.Run("convert string parameter", func(t *testing.T) {
+		d := &DialectMySQL{}
+		input, err := d.MigrateQuery("SELECT ?", []driver.NamedValue{
+			{
+				Ordinal: 1,
+				Value:   "hello",
+			},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v := aws.ToString(input.Sql); v != "SELECT :1" {
+			t.Errorf("unexpected SQL: %q, want \"SELECT :1\"", v)
+		}
+		if len(input.Parameters) != 1 {
+			t.Fatalf("unexpected number of parameters: %d, want 1", len(input.Parameters))
+		}
+		if v := aws.ToString(input.Parameters[0].Name); v != "1" {
+			t.Errorf("unexpected parameter name: %q, want \"1\"", v)
+		}
+		if v, ok := input.Parameters[0].Value.(*types.FieldMemberStringValue); !ok || string(v.Value) != "hello" {
+			t.Errorf("unexpected parameter value: %q, want \"hello\"", v.Value)
+		}
+	})
+
+	t.Run("convert time.Time parameter", func(t *testing.T) {
+		d := &DialectMySQL{}
+		input, err := d.MigrateQuery("SELECT ?", []driver.NamedValue{
+			{
+				Ordinal: 1,
+				Value:   time.Date(2006, 1, 2, 15, 4, 5, 999_999_999, time.UTC),
+			},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v := aws.ToString(input.Sql); v != "SELECT :1" {
+			t.Errorf("unexpected SQL: %q, want \"SELECT :1\"", v)
+		}
+		if len(input.Parameters) != 1 {
+			t.Fatalf("unexpected number of parameters: %d, want 1", len(input.Parameters))
+		}
+		if v := aws.ToString(input.Parameters[0].Name); v != "1" {
+			t.Errorf("unexpected parameter name: %q, want \"1\"", v)
+		}
+		if v, ok := input.Parameters[0].Value.(*types.FieldMemberStringValue); !ok || string(v.Value) != "2006-01-02 15:04:05.999999999" {
+			t.Errorf("unexpected parameter value: %q, want 2006-01-02 15:04:05.999999999", v.Value)
+		}
+	})
+
+	t.Run("convert nil parameter", func(t *testing.T) {
+		d := &DialectMySQL{}
+		input, err := d.MigrateQuery("SELECT ?", []driver.NamedValue{
+			{
+				Ordinal: 1,
+				Value:   nil,
+			},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v := aws.ToString(input.Sql); v != "SELECT :1" {
+			t.Errorf("unexpected SQL: %q, want \"SELECT :1\"", v)
+		}
+		if len(input.Parameters) != 1 {
+			t.Fatalf("unexpected number of parameters: %d, want 1", len(input.Parameters))
+		}
+		if v := aws.ToString(input.Parameters[0].Name); v != "1" {
+			t.Errorf("unexpected parameter name: %q, want \"1\"", v)
+		}
+		if v, ok := input.Parameters[0].Value.(*types.FieldMemberIsNull); !ok || !v.Value {
+			t.Errorf("unexpected parameter value: %v, want true", v.Value)
+		}
+	})
+}
 
 func TestDialectMySQL_GetFieldConverter(t *testing.T) {
 	t.Run("BIGINT UNSIGNED", func(t *testing.T) {
