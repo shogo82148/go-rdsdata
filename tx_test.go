@@ -41,9 +41,11 @@ func TestTx_Commit(t *testing.T) {
 	conn := &Conn{
 		client: client,
 		connector: &Connector{
-			resourceArn: "resourceArn",
-			secretArn:   "secretArn",
-			database:    "database",
+			cfg: &Config{
+				ResourceArn: "resourceArn",
+				SecretArn:   "secretArn",
+				Database:    "database",
+			},
 		},
 		dialect: &DialectMySQL{},
 	}
@@ -89,9 +91,11 @@ func TestTx_Rollback(t *testing.T) {
 	conn := &Conn{
 		client: client,
 		connector: &Connector{
-			resourceArn: "resourceArn",
-			secretArn:   "secretArn",
-			database:    "database",
+			cfg: &Config{
+				ResourceArn: "resourceArn",
+				SecretArn:   "secretArn",
+				Database:    "database",
+			},
 		},
 		dialect: &DialectMySQL{},
 	}

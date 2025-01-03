@@ -83,9 +83,9 @@ func (s *Stmt) executeStatement(ctx context.Context, query string, args []driver
 		return nil, err
 	}
 
-	input.ResourceArn = &s.conn.connector.resourceArn
-	input.SecretArn = &s.conn.connector.secretArn
-	input.Database = &s.conn.connector.database
+	input.ResourceArn = &s.conn.connector.cfg.ResourceArn
+	input.SecretArn = &s.conn.connector.cfg.SecretArn
+	input.Database = &s.conn.connector.cfg.Database
 	input.IncludeResultMetadata = true
 	if s.conn.tx != nil {
 		input.TransactionId = s.conn.tx.id

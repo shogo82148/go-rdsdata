@@ -8,10 +8,14 @@ import (
 	"math/rand/v2"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/shogo82148/go-rdsdata"
 )
+
+// jst is the timezone for Japan Standard Time.
+var jst = time.FixedZone("Asia/Tokyo", 9*60*60)
 
 func runMySQLTest(t *testing.T, f func(ctx context.Context, t *testing.T, db *sql.DB)) {
 	t.Parallel()
@@ -50,6 +54,8 @@ func runMySQLTest(t *testing.T, f func(ctx context.Context, t *testing.T, db *sq
 			SecretArn:   os.Getenv("RDSDATA_MYSQL_SECRET_ARN"),
 			Database:    dbname,
 			AWSRegion:   os.Getenv("AWS_REGION"),
+			Location:    jst,
+			ParseTime:   true,
 		}
 
 		connector := rdsdata.NewConnector(config)
@@ -97,6 +103,8 @@ func runMySQLTest(t *testing.T, f func(ctx context.Context, t *testing.T, db *sq
 		// setup a connection to the local MySQL server
 		config := config0.Clone()
 		config.DBName = dbname
+		config.Loc = jst
+		config.ParseTime = true
 		connector, err := mysql.NewConnector(config)
 		if err != nil {
 			t.Fatal(err)
@@ -238,6 +246,20 @@ func TestMySQL_ConvertParameters(t *testing.T) {
 			}
 		})
 	})
+
+	t.Run("time.Time", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			row := db.QueryRowContext(ctx, "SELECT ?", time.Date(2021, 1, 2, 3, 4, 5, 999_999_999, time.UTC))
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(value.([]byte), []byte("2021-01-02 12:04:05.999999999")) {
+				t.Errorf("unexpected value: %s, %T", value, value)
+			}
+		})
+	})
 }
 
 func TestMySQL_ConvertResult(t *testing.T) {
@@ -258,7 +280,7 @@ func TestMySQL_ConvertResult(t *testing.T) {
 			}
 			// go-sql-driver/mysql converts BIT to []byte
 			// however, RDS Data API converts BIT to bool
-			if data, ok := value.([]byte); (!ok || !bytes.Equal(data, []byte{0x05})) && value != true {
+			if data, ok := value.([]byte); (!ok || !bytes.Equal(data, []byte{0x05})) && value != int64(1) {
 				t.Errorf("unexpected value: %v", value)
 			}
 		})
@@ -322,9 +344,7 @@ func TestMySQL_ConvertResult(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			// go-sql-driver/mysql converts BOOLEAN to int64
-			// however, RDS Data API converts BOOLEAN to bool
-			if value != int64(1) && value != true {
+			if value != int64(1) {
 				t.Errorf("unexpected value: %v", value)
 			}
 		})
@@ -498,6 +518,27 @@ func TestMySQL_ConvertResult(t *testing.T) {
 		})
 	})
 
+	t.Run("BIGINT UNSIGNED NULL", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value BIGINT UNSIGNED)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES (NULL)"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if value != nil {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
 	t.Run("DECIMAL", func(t *testing.T) {
 		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
 			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value DECIMAL(5,2))"); err != nil {
@@ -539,6 +580,28 @@ func TestMySQL_ConvertResult(t *testing.T) {
 			}
 		})
 	})
+
+	t.Run("FLOAT NULL", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value FLOAT)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, "INSERT INTO test (value) VALUES (NULL)"); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if value != nil {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
 	t.Run("DOUBLE", func(t *testing.T) {
 		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
 			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value DOUBLE)"); err != nil {

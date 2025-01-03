@@ -55,9 +55,11 @@ func TestConn_Ping(t *testing.T) {
 	conn := &Conn{
 		client: client,
 		connector: &Connector{
-			resourceArn: "resourceArn",
-			secretArn:   "secretArn",
-			database:    "database",
+			cfg: &Config{
+				ResourceArn: "resourceArn",
+				SecretArn:   "secretArn",
+				Database:    "database",
+			},
 		},
 	}
 	if err := conn.Ping(context.Background()); err != nil {
@@ -115,9 +117,11 @@ func TestConn_BeginTx(t *testing.T) {
 	conn := &Conn{
 		client: client,
 		connector: &Connector{
-			resourceArn: "resourceArn",
-			secretArn:   "secretArn",
-			database:    "database",
+			cfg: &Config{
+				ResourceArn: "resourceArn",
+				SecretArn:   "secretArn",
+				Database:    "database",
+			},
 		},
 		dialect: &DialectMySQL{},
 	}

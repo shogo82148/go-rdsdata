@@ -74,9 +74,9 @@ func (c *Conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, e
 	}
 
 	out, err := c.client.BeginTransaction(ctx, &rdsdata.BeginTransactionInput{
-		ResourceArn: &c.connector.resourceArn,
-		SecretArn:   &c.connector.secretArn,
-		Database:    &c.connector.database,
+		ResourceArn: &c.connector.cfg.ResourceArn,
+		SecretArn:   &c.connector.cfg.SecretArn,
+		Database:    &c.connector.cfg.Database,
 	})
 	if err != nil {
 		return nil, err
@@ -97,9 +97,9 @@ func (c *Conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, e
 	}
 	if len(clause) > 0 {
 		if _, err := c.client.ExecuteStatement(ctx, &rdsdata.ExecuteStatementInput{
-			ResourceArn: &c.connector.resourceArn,
-			SecretArn:   &c.connector.secretArn,
-			Database:    &c.connector.database,
+			ResourceArn: &c.connector.cfg.ResourceArn,
+			SecretArn:   &c.connector.cfg.SecretArn,
+			Database:    &c.connector.cfg.Database,
 			Sql:         aws.String("SET TRANSACTION " + strings.Join(clause, ", ")),
 		}); err != nil {
 			_ = tx.Rollback()
@@ -132,9 +132,9 @@ func (c *Conn) QueryContext(ctx context.Context, query string, args []driver.Nam
 // Ping ping the database to check if the connection is still alive.
 func (c *Conn) Ping(ctx context.Context) error {
 	_, err := c.client.ExecuteStatement(ctx, &rdsdata.ExecuteStatementInput{
-		ResourceArn: &c.connector.resourceArn,
-		SecretArn:   &c.connector.secretArn,
-		Database:    &c.connector.database,
+		ResourceArn: &c.connector.cfg.ResourceArn,
+		SecretArn:   &c.connector.cfg.SecretArn,
+		Database:    &c.connector.cfg.Database,
 		Sql:         aws.String("/* ping */ SELECT 1"),
 	})
 	return err
