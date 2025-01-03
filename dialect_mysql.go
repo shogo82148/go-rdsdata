@@ -111,7 +111,7 @@ func (d *DialectMySQL) convertNamedValue(arg driver.NamedValue) (types.SqlParame
 		}, nil
 	case time.Time:
 		const format = "2006-01-02 15:04:05.999999999"
-		t := v.In(d.location).Truncate(d.timeTruncate)
+		t := v.In(d.getLocation()).Truncate(d.timeTruncate)
 		return types.SqlParameter{
 			Name:  &name,
 			Value: &types.FieldMemberStringValue{Value: t.Format(format)},
@@ -140,6 +140,13 @@ func (d *DialectMySQL) IsIsolationLevelSupported(level sql.IsolationLevel) bool 
 	default:
 		return false
 	}
+}
+
+func (d *DialectMySQL) getLocation() *time.Location {
+	if d.location == nil {
+		d.location = time.UTC
+	}
+	return d.location
 }
 
 func (d *DialectMySQL) GetFieldConverter(columnType string) FieldConverter {
