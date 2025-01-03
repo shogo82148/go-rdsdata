@@ -280,7 +280,7 @@ func TestMySQL_ConvertResult(t *testing.T) {
 			}
 			// go-sql-driver/mysql converts BIT to []byte
 			// however, RDS Data API converts BIT to bool
-			if data, ok := value.([]byte); (!ok || !bytes.Equal(data, []byte{0x05})) && value != true {
+			if data, ok := value.([]byte); (!ok || !bytes.Equal(data, []byte{0x05})) && value != int64(1) {
 				t.Errorf("unexpected value: %v", value)
 			}
 		})
@@ -344,9 +344,7 @@ func TestMySQL_ConvertResult(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			// go-sql-driver/mysql converts BOOLEAN to int64
-			// however, RDS Data API converts BOOLEAN to bool
-			if value != int64(1) && value != true {
+			if value != int64(1) {
 				t.Errorf("unexpected value: %v", value)
 			}
 		})

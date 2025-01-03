@@ -174,7 +174,11 @@ func convertMySQLDefault(field types.Field) (driver.Value, error) {
 	case *types.FieldMemberDoubleValue:
 		return v.Value, nil
 	case *types.FieldMemberBooleanValue:
-		return v.Value, nil
+		if v.Value {
+			return int64(1), nil
+		} else {
+			return int64(0), nil
+		}
 	case *types.FieldMemberBlobValue:
 		return v.Value, nil
 	case *types.FieldMemberStringValue:
