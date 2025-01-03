@@ -144,7 +144,7 @@ func (d *DialectMySQL) IsIsolationLevelSupported(level sql.IsolationLevel) bool 
 
 func (d *DialectMySQL) getLocation() *time.Location {
 	if d.location == nil {
-		d.location = time.UTC
+		return time.UTC
 	}
 	return d.location
 }
