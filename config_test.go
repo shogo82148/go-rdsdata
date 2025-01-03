@@ -56,6 +56,14 @@ func TestParseDSN(t *testing.T) {
 		}
 	})
 
+	t.Run("invalid parseTime", func(t *testing.T) {
+		dns := "rdsdata://?parse_time=invalid"
+		_, err := ParseDSN(dns)
+		if err == nil {
+			t.Fatal("expected error, but got nil")
+		}
+	})
+
 	t.Run("timeTruncate", func(t *testing.T) {
 		dns := "rdsdata://?time_truncate=1s"
 		cfg, err := ParseDSN(dns)
