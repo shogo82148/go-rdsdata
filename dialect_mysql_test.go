@@ -260,6 +260,50 @@ func TestDialectMySQL_GetFieldConverter(t *testing.T) {
 		}
 	})
 
+	t.Run("DATE parseTime=false", func(t *testing.T) {
+		d := &DialectMySQL{
+			parseTime: false,
+		}
+		conv := d.GetFieldConverter("DATE")
+		v, err := conv(&types.FieldMemberStringValue{Value: "2006-01-02"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, ok := v.([]byte)
+		if !ok {
+			t.Fatalf("unexpected value: %v, want []byte", v)
+		}
+		if string(data) != "2006-01-02" {
+			t.Errorf("unexpected value: %v, want 2006-01-02", v)
+		}
+	})
+
+	t.Run("DATE parseTime=true", func(t *testing.T) {
+		d := &DialectMySQL{
+			parseTime: true,
+		}
+		conv := d.GetFieldConverter("DATE")
+		v, err := conv(&types.FieldMemberStringValue{Value: "2006-01-02"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v != time.Date(2006, 1, 2, 0, 0, 0, 0, time.UTC) {
+			t.Errorf("unexpected value: %v, want 2006-01-02", v)
+		}
+	})
+
+	t.Run("DATE NULL", func(t *testing.T) {
+		d := &DialectMySQL{}
+		conv := d.GetFieldConverter("DATE")
+		v, err := conv(&types.FieldMemberIsNull{Value: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v != nil {
+			t.Errorf("unexpected value: %v, want nil", v)
+		}
+	})
+
 	t.Run("DATETIME parseTime=false", func(t *testing.T) {
 		d := &DialectMySQL{
 			parseTime: false,

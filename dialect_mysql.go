@@ -178,6 +178,25 @@ func (d *DialectMySQL) GetFieldConverter(columnType string) FieldConverter {
 			}
 		}
 
+	case "DATE":
+		return func(field types.Field) (driver.Value, error) {
+			switch v := field.(type) {
+			case *types.FieldMemberStringValue:
+				if !d.parseTime {
+					return []byte(v.Value), nil
+				}
+				t, err := time.ParseInLocation("2006-01-02", v.Value, d.getLocation())
+				if err != nil {
+					return nil, err
+				}
+				return t, nil
+			case *types.FieldMemberIsNull:
+				return nil, nil
+			default:
+				return nil, fmt.Errorf("rdsdata: unsupported field type: %T", v)
+			}
+		}
+
 	case "DATETIME":
 		return func(field types.Field) (driver.Value, error) {
 			switch v := field.(type) {
