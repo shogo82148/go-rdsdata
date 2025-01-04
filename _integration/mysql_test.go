@@ -994,6 +994,32 @@ func TestMySQL_ConvertResult(t *testing.T) {
 		})
 	})
 
+	t.Run("TIME", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value TIME(6))"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, `INSERT INTO test (value) VALUES ('12:34:56.789012')`); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+
+			tv, ok := value.([]byte)
+			if !ok {
+				t.Errorf("unexpected value: %T", value)
+			}
+			if !bytes.Equal(tv, []byte("12:34:56.789012")) {
+				t.Errorf("unexpected value: %q", value)
+			}
+		})
+	})
+
 	t.Run("DATETIME", func(t *testing.T) {
 		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
 			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value DATETIME(6))"); err != nil {
