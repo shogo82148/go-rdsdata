@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"math/rand/v2"
 	"os"
@@ -256,6 +257,34 @@ func TestMySQL_ConvertParameters(t *testing.T) {
 				t.Fatal(err)
 			}
 			if !bytes.Equal(value.([]byte), []byte("2021-01-02 12:04:05.999999999")) {
+				t.Errorf("unexpected value: %s, %T", value, value)
+			}
+		})
+	})
+
+	t.Run("nil", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			row := db.QueryRowContext(ctx, "SELECT ?", nil)
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if value != nil {
+				t.Errorf("unexpected value: %s, %T", value, value)
+			}
+		})
+	})
+
+	t.Run("json.RawMessage", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			row := db.QueryRowContext(ctx, "SELECT ?", json.RawMessage(`{"hello": "world"}`))
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(value.([]byte), []byte(`{"hello": "world"}`)) {
 				t.Errorf("unexpected value: %s, %T", value, value)
 			}
 		})
@@ -912,7 +941,28 @@ func TestMySQL_ConvertResult(t *testing.T) {
 				t.Fatal(err)
 			}
 			if !bytes.Equal(value.([]byte), []byte("red,green")) {
-				t.Errorf("unexpected value: %v", value)
+				t.Errorf("unexpected value: %q", value)
+			}
+		})
+	})
+
+	t.Run("JSON", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (json JSON)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, `INSERT INTO test (json) VALUES ('{}')`); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT json FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(value.([]byte), []byte(`{}`)) {
+				t.Errorf("unexpected value: %q", value)
 			}
 		})
 	})
