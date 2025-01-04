@@ -197,7 +197,7 @@ func (d *DialectMySQL) GetFieldConverter(columnType string) FieldConverter {
 			}
 		}
 
-	case "DATETIME":
+	case "DATETIME", "TIMESTAMP":
 		return func(field types.Field) (driver.Value, error) {
 			switch v := field.(type) {
 			case *types.FieldMemberStringValue:

@@ -1046,4 +1046,31 @@ func TestMySQL_ConvertResult(t *testing.T) {
 			}
 		})
 	})
+
+	t.Run("TIMESTAMP", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value TIMESTAMP(6))"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, `INSERT INTO test (value) VALUES ('2038-01-19 03:14:07.999999')`); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+
+			// go-sql-driver/mysql converts TIMESTAMP to time.Time if ParseTime=true.
+			tv, ok := value.(time.Time)
+			if !ok {
+				t.Errorf("unexpected value: %T", value)
+			}
+			if !tv.Equal(time.Date(2038, 1, 19, 3, 14, 7, 999_999_000, jst)) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
 }
