@@ -183,7 +183,7 @@ func (d *DialectMySQL) GetFieldConverter(columnType string) FieldConverter {
 			switch v := field.(type) {
 			case *types.FieldMemberStringValue:
 				if !d.parseTime {
-					return v.Value, nil
+					return []byte(v.Value), nil
 				}
 				t, err := time.ParseInLocation("2006-01-02 15:04:05.999999999", v.Value, d.getLocation())
 				if err != nil {
