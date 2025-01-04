@@ -966,4 +966,133 @@ func TestMySQL_ConvertResult(t *testing.T) {
 			}
 		})
 	})
+
+	t.Run("DATE", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value DATE)"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, `INSERT INTO test (value) VALUES ('2025-01-04')`); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+
+			// go-sql-driver/mysql converts DATETIME to time.Time if ParseTime=true.
+			tv, ok := value.(time.Time)
+			if !ok {
+				t.Errorf("unexpected value: %T", value)
+			}
+			if !tv.Equal(time.Date(2025, 01, 04, 0, 0, 0, 0, jst)) {
+				t.Errorf("unexpected value: %q", value)
+			}
+		})
+	})
+
+	t.Run("TIME", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value TIME(6))"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, `INSERT INTO test (value) VALUES ('12:34:56.789012')`); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+
+			tv, ok := value.([]byte)
+			if !ok {
+				t.Errorf("unexpected value: %T", value)
+			}
+			if !bytes.Equal(tv, []byte("12:34:56.789012")) {
+				t.Errorf("unexpected value: %q", value)
+			}
+		})
+	})
+
+	t.Run("DATETIME", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value DATETIME(6))"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, `INSERT INTO test (value) VALUES ('9999-12-31 23:59:59.999999')`); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+
+			// go-sql-driver/mysql converts DATETIME to time.Time if ParseTime=true.
+			tv, ok := value.(time.Time)
+			if !ok {
+				t.Errorf("unexpected value: %T", value)
+			}
+			if !tv.Equal(time.Date(9999, 12, 31, 23, 59, 59, 999_999_000, jst)) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("TIMESTAMP", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value TIMESTAMP(6))"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, `INSERT INTO test (value) VALUES ('2038-01-19 03:14:07.999999')`); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+
+			// go-sql-driver/mysql converts TIMESTAMP to time.Time if ParseTime=true.
+			tv, ok := value.(time.Time)
+			if !ok {
+				t.Errorf("unexpected value: %T", value)
+			}
+			if !tv.Equal(time.Date(2038, 1, 19, 3, 14, 7, 999_999_000, jst)) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("YEAR", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value YEAR(4))"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, `INSERT INTO test (value) VALUES (2021)`); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+
+			if value != int64(2021) {
+				t.Errorf("unexpected value: %v, %T", value, value)
+			}
+		})
+	})
 }
