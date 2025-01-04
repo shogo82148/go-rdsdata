@@ -1073,4 +1073,26 @@ func TestMySQL_ConvertResult(t *testing.T) {
 			}
 		})
 	})
+
+	t.Run("YEAR", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value YEAR(4))"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.ExecContext(ctx, `INSERT INTO test (value) VALUES (2021)`); err != nil {
+				t.Fatal(err)
+			}
+
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+
+			var value any
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+
+			if value != int64(2021) {
+				t.Errorf("unexpected value: %v, %T", value, value)
+			}
+		})
+	})
 }

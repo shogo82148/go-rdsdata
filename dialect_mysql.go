@@ -215,6 +215,18 @@ func (d *DialectMySQL) GetFieldConverter(columnType string) FieldConverter {
 				return nil, fmt.Errorf("rdsdata: unsupported field type: %T", v)
 			}
 		}
+
+	case "YEAR":
+		return func(field types.Field) (driver.Value, error) {
+			switch v := field.(type) {
+			case *types.FieldMemberStringValue:
+				return strconv.ParseInt(v.Value, 10, 64)
+			case *types.FieldMemberIsNull:
+				return nil, nil
+			default:
+				return nil, fmt.Errorf("rdsdata: unsupported field type: %T", v)
+			}
+		}
 	}
 	return convertMySQLDefault
 }
