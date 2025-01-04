@@ -164,12 +164,32 @@ func (d *DialectMySQL) GetFieldConverter(columnType string) FieldConverter {
 				return nil, fmt.Errorf("rdsdata: unsupported field type: %T", v)
 			}
 		}
+
 	case "FLOAT":
 		return func(field types.Field) (driver.Value, error) {
 			switch v := field.(type) {
 			case *types.FieldMemberDoubleValue:
 				// go-sql-driver/mysql converts FLOAT to float32.
 				return float32(v.Value), nil
+			case *types.FieldMemberIsNull:
+				return nil, nil
+			default:
+				return nil, fmt.Errorf("rdsdata: unsupported field type: %T", v)
+			}
+		}
+
+	case "DATETIME":
+		return func(field types.Field) (driver.Value, error) {
+			switch v := field.(type) {
+			case *types.FieldMemberStringValue:
+				if !d.parseTime {
+					return v.Value, nil
+				}
+				t, err := time.ParseInLocation("2006-01-02 15:04:05.999999999", v.Value, d.getLocation())
+				if err != nil {
+					return nil, err
+				}
+				return t, nil
 			case *types.FieldMemberIsNull:
 				return nil, nil
 			default:
