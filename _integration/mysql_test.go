@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand/v2"
 	"os"
@@ -1092,6 +1093,76 @@ func TestMySQL_ConvertResult(t *testing.T) {
 
 			if value != int64(2021) {
 				t.Errorf("unexpected value: %v, %T", value, value)
+			}
+		})
+	})
+}
+
+func TestMySQL_Tx(t *testing.T) {
+	t.Run("Commit", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value INT)"); err != nil {
+				t.Fatal(err)
+			}
+
+			tx, err := db.BeginTx(ctx, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer tx.Rollback()
+
+			if _, err := tx.ExecContext(ctx, "INSERT INTO test (value) VALUES (42)"); err != nil {
+				t.Fatal(err)
+			}
+
+			// inserted value should not be visible from the main connection
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+			var value any
+			if err := row.Scan(&value); !errors.Is(err, sql.ErrNoRows) {
+				t.Fatal(err)
+			}
+
+			// Commit
+			if err := tx.Commit(); err != nil {
+				t.Fatal(err)
+			}
+
+			// inserted value should be visible from the main connection
+			row = db.QueryRowContext(ctx, "SELECT value FROM test")
+			if err := row.Scan(&value); err != nil {
+				t.Fatal(err)
+			}
+			if value != int64(42) {
+				t.Errorf("unexpected value: %v", value)
+			}
+		})
+	})
+
+	t.Run("Rollback", func(t *testing.T) {
+		runMySQLTest(t, func(ctx context.Context, t *testing.T, db *sql.DB) {
+			if _, err := db.ExecContext(ctx, "CREATE TABLE test (value INT)"); err != nil {
+				t.Fatal(err)
+			}
+
+			tx, err := db.BeginTx(ctx, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer tx.Rollback()
+
+			if _, err := tx.ExecContext(ctx, "INSERT INTO test (value) VALUES (42)"); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := tx.Rollback(); err != nil {
+				t.Fatal(err)
+			}
+
+			// inserted value should not be visible.
+			row := db.QueryRowContext(ctx, "SELECT value FROM test")
+			var value any
+			if err := row.Scan(&value); !errors.Is(err, sql.ErrNoRows) {
+				t.Fatal(err)
 			}
 		})
 	})
