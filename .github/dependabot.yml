@@ -21,3 +21,9 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+
+  # Maintain dependencies for npm packages
+  - package-ecosystem: "npm"
+    directory: "_integration/_cdk/"
+    schedule:
+      interval: "weekly"
