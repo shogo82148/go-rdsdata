@@ -9,9 +9,11 @@ A Go SQL Driver for the Amazon Aurora Serverless data api.
 
 ```go
 import (
+  "context"
   "database/sql"
+  "log"
 
-  "github.com/shogo82148/go-rdsdata"
+  rdsdata "github.com/shogo82148/go-rdsdata"
 )
 
 func main() {
