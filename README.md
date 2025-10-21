@@ -39,3 +39,11 @@ func main() {
   }
 }
 ```
+
+## License
+
+MIT
+
+## Prior Works
+
+- <https://github.com/krotscheck/go-rds-driver>
