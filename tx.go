@@ -42,7 +42,8 @@ func (tx *Tx) Rollback() error {
 		return sql.ErrTxDone
 	}
 
-	_, err := tx.conn.client.RollbackTransaction(context.Background(), &rdsdata.RollbackTransactionInput{
+	ctx := context.WithoutCancel(tx.ctx)
+	_, err := tx.conn.client.RollbackTransaction(ctx, &rdsdata.RollbackTransactionInput{
 		ResourceArn:   &tx.conn.connector.cfg.ResourceArn,
 		SecretArn:     &tx.conn.connector.cfg.SecretArn,
 		TransactionId: tx.id,
