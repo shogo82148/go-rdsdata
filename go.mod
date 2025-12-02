@@ -6,7 +6,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.40.0
 	github.com/aws/aws-sdk-go-v2/config v1.32.0
 	github.com/aws/aws-sdk-go-v2/service/rdsdata v1.32.13
-	github.com/shogo82148/go-retry/v2 v2.0.1
+	github.com/shogo82148/go-retry/v2 v2.0.2
 )
 
 require (
